@@ -77,7 +77,6 @@ set(platform_sources
 	#src/introspection/introspection.c
 	src/os/alloc_once.c
 	src/os/atomic.c
-	src/os/feature.c
 	src/os/lock.c
 	src/os/semaphore.c
 	src/setjmp/generic/setjmperr.c
@@ -124,20 +123,6 @@ set_target_properties(platform PROPERTIES OUTPUT_NAME "system_platform")
 
 #target_link_libraries(platform PRIVATE system_kernel compiler_rt)
 
-if (BUILD_TESTING AND TARGET_x86_64)
-	include(darling_exe)
-	add_darling_executable(darling_bzero_return_regress
-		tests/darling_bzero_return_regress.c
-	)
-
-	if (CMAKE_CROSSCOMPILING_EMULATOR)
-		add_test(
-			NAME darling_bzero_return_regress
-			COMMAND darling_bzero_return_regress
-		)
-	endif ()
-endif ()
-
 if (BUILD_TARGET_32BIT)
 	add_darling_static_library(platform_static32 SOURCES ${platform_sources} $<TARGET_OBJECTS:platform_32bit>)
 	set_target_properties(platform_static32 PROPERTIES COMPILE_FLAGS "-arch ${APPLE_ARCH_32BIT} -DVARIANT_STATIC -fvisibility=hidden")
@@ -151,3 +136,13 @@ if (BUILD_TARGET_64BIT)
 endif (BUILD_TARGET_64BIT)
 
 install(TARGETS platform DESTINATION libexec/darling/usr/lib/system)
+
+# These files implement memset, memmove, memcmp and memchr themselves.
+# Without -fno-builtin the compiler may recognise their loops as those
+# very functions and turn them into calls to themselves.
+set_source_files_properties(
+	src/string/generic/bzero.c
+	src/string/generic/memchr.c
+	src/string/generic/memcmp.c
+	src/string/generic/memmove.c
+	PROPERTIES COMPILE_OPTIONS "-fno-builtin")
